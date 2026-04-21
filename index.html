@@ -3,88 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>橙色的 Sax 強化練習器 v2.6.0</title>
+    <title>橙色的 Sax 強化練習器 v2.7.4</title>
     <style>
         :root { 
-            --primary: #81ecec; --success: #55efc4; --error: #fab1a0;
-            --bg: #1e272e; --card-bg: #2f3640; --text-main: #dfe6e9;
+            --primary: #81ecec;     --primary-dark: #2d3436; 
+            --success: #55efc4;     --error: #fab1a0;       
+            --bg: #1e272e;          --card-bg: #2f3640;     
+            --text-main: #dfe6e9;   --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-        body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background: var(--bg); color: var(--text-main); margin: 0; min-height: 100vh; justify-content: center; user-select: none; }
-        .card { background: var(--card-bg); padding: 25px; border-radius: 28px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); text-align: center; max-width: 500px; width: 100%; position: relative; border: 1px solid #3d444d; }
-        .top-nav { position: absolute; top: 15px; width: calc(100% - 40px); display: flex; justify-content: flex-end; z-index: 10; }
-        .nav-item { cursor: pointer; font-size: 1.5em; opacity: 0.6; }
-        .base-status { font-size: 0.75em; color: #e67e22; font-weight: bold; margin-top: 5px; }
-        .quiz-container { background: #182026; border-radius: 20px; padding: 30px 20px; margin: 15px 0; border: 2px solid #3d444d; min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .target-note { font-size: 7em; font-weight: 900; color: var(--primary); line-height: 1; }
+
+        body { font-family: var(--font-main); display: flex; flex-direction: column; align-items: center; padding: 20px; background: var(--bg); color: var(--text-main); margin: 0; min-height: 100vh; justify-content: center; user-select: none; }
+
+        .card { background: var(--card-bg); padding: 25px; border-radius: 28px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); text-align: center; max-width: 500px; width: 100%; position: relative; border: 1px solid #3d444d; z-index: 10; }
+        
+        .top-nav { position: absolute; top: 15px; width: calc(100% - 40px); display: flex; justify-content: space-between; padding: 0 5px; z-index: 20; }
+        .nav-group { display: flex; gap: 12px; align-items: center; }
+        .nav-item { cursor: pointer; font-size: 1.3em; transition: 0.2s; filter: grayscale(0.5); opacity: 0.6; }
+        .nav-item:hover { filter: grayscale(0); transform: scale(1.1); opacity: 1; }
+
+        .app-title { color: var(--primary); margin: 0; font-size: 1.4em; font-weight: 900; }
+        .base-status { font-size: 0.75em; color: #e67e22; font-weight: bold; margin-top: 5px; height: 1.2em; letter-spacing: 1px; }
+
+        .quiz-container { background: #182026; border-radius: 20px; padding: 30px 20px; margin: 15px 0; border: 2px solid #3d444d; min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
+        .target-label { font-size: 0.9em; color: #718093; margin-bottom: 5px; font-weight: bold; }
+        .target-note { font-size: 7em; font-weight: 900; color: var(--primary); line-height: 1; text-shadow: 0 0 20px rgba(129, 236, 236, 0.4); }
+
         .progress-container { width: 100%; height: 8px; background: #2f3640; border-radius: 4px; margin-top: 20px; overflow: hidden; display: none; }
-        .progress-bar { height: 100%; width: 0%; background: var(--success); }
-        .monitor-small { font-size: 1.3em; color: var(--success); font-weight: bold; margin-top: 15px; font-family: monospace; }
-        .info-panel { background: #353b48; border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: left; display: none; border: 1px solid #485460; max-height: 65vh; overflow-y: auto; }
+        .progress-bar { height: 100%; width: 0%; background: var(--success); transition: width 0.1s linear; }
+
+        .monitor-box { margin-top: 15px; height: 1.5em; }
+        .monitor-small { font-size: 1.3em; color: var(--success); font-weight: bold; font-family: monospace; }
+
+        .info-panel { background: #353b48; border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: left; display: none; border: 1px solid #485460; max-height: 65vh; overflow-y: auto; z-index: 30; }
+        .setting-group { margin-bottom: 12px; border-bottom: 1px solid #485460; padding-bottom: 8px; }
+        .group-title { font-weight: 800; color: var(--primary); display: block; margin-bottom: 8px; font-size: 1.1em; }
         .setting-item { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 0.9em; }
-        select, input { background: #1e272e; color: white; border: 1px solid #485460; border-radius: 4px; padding: 4px; }
-        #mainBtn { padding: 16px; font-size: 1.2em; cursor: pointer; border: none; border-radius: 14px; font-weight: bold; width: 100%; color: #1e272e; background: var(--success); margin-top: 15px; }
-        #micBtn { background: #e67e22; color: white; margin-bottom: 10px; display: none; }
+        select, input[type="number"], input[type="range"] { background: #1e272e; color: white; border: 1px solid #485460; border-radius: 4px; padding: 4px 8px; }
+
+        .preset-item { background: #2f3640; border: 1px solid #485460; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+        .preset-btn { padding: 8px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 0.85em; }
+        .btn-load { background: var(--primary); color: #1e272e; }
+        .btn-save { background: var(--success); color: #1e272e; }
+        .btn-del { background: #718093; color: white; }
+
+        #mainBtn { padding: 16px; font-size: 1.2em; cursor: pointer; border: none; border-radius: 14px; font-weight: bold; width: 100%; color: #1e272e; background: var(--success); margin-top: 15px; box-shadow: 0 4px 0 #26ae60; outline: none; }
+        #micBtn { padding: 12px; background: #e67e22; color: white; border-radius: 12px; border: none; width: 100%; font-weight: bold; margin-bottom: 10px; display: none; cursor: pointer; }
+        #micBtn.active { background: var(--success); color: #1e272e; }
+
+        .footer { margin-top: 25px; color: #718093; font-size: 0.75em; text-align: center; }
+        .changelog { margin-top: 10px; text-align: left; background: #2f3640; padding: 12px; border-radius: 10px; font-size: 0.85em; border: 1px solid #485460; }
+        .changelog summary { cursor: pointer; color: var(--primary); font-weight: bold; outline: none; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div class="top-nav"><div class="nav-item" onclick="togglePanel('settingsPanel')">⚙️</div></div>
-        <h1 style="color:var(--primary); font-size:1.4em; margin:0;">Sax 強化訓練器</h1>
-        <div id="baseStatus" class="base-status">WAITING...</div>
+        <div class="top-nav">
+            <div class="nav-group"><div class="nav-item" onclick="togglePanel('presetPanel')">📑</div></div>
+            <div class="nav-group">
+                <div class="nav-item" onclick="fullReset()">🏠</div>
+                <div class="nav-item" onclick="togglePanel('settingsPanel')">⚙️</div>
+            </div>
+        </div>
+
+        <h1 class="app-title">Sax 強化訓練器</h1>
+        <div id="baseStatus" class="base-status">WAITING FOR INPUT...</div>
+
+        <div id="presetPanel" class="info-panel">
+            <span class="group-title">📑 存檔管理</span>
+            <div id="presetContainer">
+                <div class="preset-item" id="slot-1"></div>
+                <div class="preset-item" id="slot-2"></div>
+                <div class="preset-item" id="slot-3"></div>
+            </div>
+        </div>
 
         <div id="settingsPanel" class="info-panel">
-            <div style="font-weight:800; color:var(--primary); border-bottom:1px solid #485460; margin-bottom:10px;">🎤 輸入設定</div>
-            <div class="setting-item">
-                <label>輸入來源</label>
-                <select id="inputType" onchange="updateSettings()">
-                    <option value="midi">MIDI (YDS-120)</option>
-                    <option value="mic">Microphone (實體 Sax)</option>
-                </select>
-            </div>
-            <div class="setting-item">
-                <label>麥克風靈敏度 (門檻)</label>
-                <input type="range" id="micThreshold" min="0.01" max="0.3" step="0.01" value="0.05">
+            <div class="setting-group">
+                <span class="group-title">🎤 輸入源設定</span>
+                <div class="setting-item">
+                    <label>輸入來源</label>
+                    <select id="inputType" onchange="updateSettings()">
+                        <option value="midi">MIDI (YDS-120)</option>
+                        <option value="mic" selected>Microphone (實體 Sax)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>麥克風靈敏度</label>
+                    <input type="range" id="micThreshold" min="0.01" max="0.2" step="0.01" value="0.05">
+                </div>
             </div>
 
-            <div style="font-weight:800; color:var(--primary); margin-top:15px; border-bottom:1px solid #485460; margin-bottom:10px;">🎷 移調與調性</div>
-            <div class="setting-item">
-                <label>樂器種類</label>
-                <select id="saxType" onchange="updateSettings()">
-                    <option value="piano">Piano (C)</option>
-                    <option value="alto">Alto Sax (Eb) [+9]</option>
-                    <option value="tenor" selected>Tenor Sax (Bb) [+2]</option>
-                </select>
+            <div class="setting-group">
+                <span class="group-title">🎷 移調與調性 (12鍵)</span>
+                <div class="setting-item">
+                    <label>當前樂器</label>
+                    <select id="saxType" onchange="updateSettings()">
+                        <option value="piano">Piano (C)</option>
+                        <option value="alto">Alto Sax (Eb) [+9]</option>
+                        <option value="bari">Bari Sax (Eb) [-3]</option>
+                        <option value="tenor" selected>Tenor Sax (Bb) [+2]</option>
+                        <option value="sop">Soprano Sax (Bb) [+2]</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>訓練調性 (Key)</label>
+                    <select id="questionKey" onchange="updateSettings()">
+                        <option value="0">C Major</option><option value="1">C# Major</option><option value="2">D Major</option>
+                        <option value="3">Eb Major</option><option value="4">E Major</option><option value="5">F Major</option>
+                        <option value="6">F# Major</option><option value="7">G Major</option><option value="8">Ab Major</option>
+                        <option value="9">A Major</option><option value="10">Bb Major</option><option value="11">B Major</option>
+                    </select>
+                </div>
             </div>
-            <div class="setting-item">
-                <label>訓練調性</label>
-                <select id="questionKey" onchange="updateSettings()">
-                    <option value="0">C Major</option><option value="2">D Major</option><option value="7">G Major</option>
-                </select>
+
+            <div class="setting-group">
+                <span class="group-title">📋 出題與顯示模式</span>
+                <div class="setting-item">
+                    <label>出題模式</label>
+                    <select id="displayMode" onchange="updateSettings()">
+                        <option value="num">簡譜 (123)</option>
+                        <option value="name" selected>首調音名 (CDE)</option>
+                    </select>
+                </div>
+                <div class="setting-item"><label>包含半音</label><input type="checkbox" id="includeChromatic" onchange="updateSettings()"></div>
+                <div class="setting-item">
+                    <label>吹滿秒數過關</label>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="checkbox" id="sustainEnable" checked onchange="updateSettings()">
+                        <input type="number" id="sustainSec" value="1.5" step="0.1" min="0.1" style="width:50px;">
+                    </div>
+                </div>
+                <div class="setting-item"><label>顯示演奏監測</label><input type="checkbox" id="showMonitor" checked></div>
+                <div class="setting-item"><label>監測器顯示首調</label><input type="checkbox" id="monitorMovable" checked></div>
+                <div class="setting-item"><label>顯示八度 (C3/C4)</label><input type="checkbox" id="showOctave" checked></div>
+                <div class="setting-item"><label>自動跳下一題</label><input type="checkbox" id="autoNext" checked></div>
             </div>
-            <div class="setting-item">
-                <label>出題模式</label>
-                <select id="displayMode" onchange="updateSettings()">
-                    <option value="num">簡譜 (123)</option>
-                    <option value="name">音名 (CDE)</option>
-                </select>
-            </div>
-            <div class="setting-item">
-                <label>吹滿秒數</label>
-                <input type="number" id="sustainSec" value="1.5" step="0.5" style="width:50px;">
-            </div>
-            <button onclick="togglePanel('settingsPanel')" style="width:100%; padding:10px; background:var(--primary); border:none; margin-top:10px; font-weight:bold;">關閉設定</button>
+            <button onclick="togglePanel('settingsPanel')" style="width:100%; padding:10px; background:var(--success); border:none; border-radius:10px; font-weight:bold; color:#1e272e;">完成設定</button>
         </div>
 
         <button id="micBtn" onclick="startMic()">🎤 點擊啟動麥克風收音</button>
 
         <div class="quiz-container">
+            <div class="target-label" id="keyLabel">C Major - 首調練習</div>
             <div id="targetNoteDisplay" class="target-note">--</div>
             <div class="progress-container" id="progCont"><div class="progress-bar" id="progBar"></div></div>
-            <div id="monitorNote" class="monitor-small"></div>
+            <div class="monitor-box"><div id="monitorNote" class="monitor-small"></div></div>
         </div>
 
-        <button id="mainBtn" onclick="generateTask()">開始練習</button>
+        <button id="mainBtn" onclick="handleClick()">開始練習</button>
+
+        <footer class="footer">
+            <p>Made with ❤️ by <strong>EtOH58daidai</strong> & <strong>Gemini</strong></p>
+            <p>有事情 TG: <a href="https://t.me/EtOH58daidai" target="_blank" style="color: #E67E22;">EtOH58daidai</a></p>
+            <details class="changelog">
+                <summary>📜 工作日誌</summary>
+                <ul style="padding-left: 20px; text-align: left; margin-top: 5px;">
+                    <li><strong>v2.7.4</strong>: 核心修復！修正音效引擎導致的腳本卡死問題。</li>
+                    <li><strong>v2.7.3</strong>: 補完存檔覆蓋功能與智慧命名。</li>
+                    <li><strong>v2.7.0</strong>: 支援實體 Sax 收音偵測。</li>
+                </ul>
+            </details>
+        </footer>
     </div>
 
 <script>
@@ -93,63 +173,99 @@
     const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
 
     let state = {
-        transposition: 0, keyRoot: 0, targetFixedPitch: -1,
-        isSustaining: false, sustainStartTime: 0, currentNote: -1,
-        audioCtx: null, analyser: null, micStream: null, isMicRunning: false
+        transposition: 0, midiStatus: "none", keyRoot: 0,
+        targetFixedPitch: -1, isSustaining: false, sustainStartTime: 0,
+        currentNote: -1, isCorrect: false, 
+        audioCtx: null, analyser: null, isMicRunning: false,
+        isStarted: false
     };
 
-    window.onload = () => { updateSettings(); initMIDI(); requestAnimationFrame(updateLoop); };
+    window.onload = () => { 
+        updatePresetUI(); 
+        updateSettings(); 
+        initMIDI(); 
+        requestAnimationFrame(updateLoop); 
+    };
+
+    // --- 核心啟動 ---
+    function handleClick() {
+        // 關鍵修正：必須在點擊瞬間啟動 AudioContext 避免卡死
+        if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+        
+        state.isStarted = true;
+        generateTask();
+    }
 
     function updateSettings() {
         const sax = document.getElementById("saxType").value;
-        const offsets = { piano: 0, alto: 9, tenor: 2 };
+        const offsets = { piano: 0, alto: 9, bari: -3, tenor: 2, sop: 2 };
         state.transposition = offsets[sax];
         state.keyRoot = parseInt(document.getElementById("questionKey").value);
-        document.getElementById("progCont").style.display = "block";
-        document.getElementById("micBtn").style.display = (document.getElementById("inputType").value === "mic") ? "block" : "none";
+        
+        const inputType = document.getElementById("inputType").value;
+        document.getElementById("micBtn").style.display = (inputType === "mic") ? "block" : "none";
+        document.getElementById("progCont").style.display = document.getElementById("sustainEnable").checked ? "block" : "none";
+        
+        const keyOpt = document.getElementById("questionKey");
+        document.getElementById("keyLabel").innerText = `${keyOpt.options[keyOpt.selectedIndex].text} - 首調題`;
+        updateStatus();
     }
 
     async function startMic() {
-        if (state.isMicRunning) return;
-        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        state.analyser = state.audioCtx.createAnalyser();
-        state.analyser.fftSize = 2048;
-        
+        if (!state.audioCtx) state.audioCtx = new AudioContext();
+        await state.audioCtx.resume();
         try {
-            state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const source = state.audioCtx.createMediaStreamSource(state.micStream);
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const source = state.audioCtx.createMediaStreamSource(stream);
+            state.analyser = state.audioCtx.createAnalyser();
+            state.analyser.fftSize = 2048;
             source.connect(state.analyser);
             state.isMicRunning = true;
-            document.getElementById("micBtn").innerText = "🎤 麥克風監聽中...";
-            document.getElementById("micBtn").style.background = "#55efc4";
-        } catch (err) { alert("無法取得麥克風權限"); }
+            document.getElementById("micBtn").innerText = "🎤 麥克風已就緒";
+            document.getElementById("micBtn").classList.add("active");
+            updateStatus();
+        } catch (err) { alert("麥克風啟動失敗。"); }
     }
 
     function initMIDI() {
         if (navigator.requestMIDIAccess) {
             navigator.requestMIDIAccess().then(access => {
-                for (let input of access.inputs.values()) input.onmidimessage = (msg) => {
-                    if (document.getElementById("inputType").value !== "midi") return;
-                    const [cmd, note, vel] = msg.data;
-                    if (cmd === 144 && vel > 0) state.currentNote = note;
-                    else if (cmd === 128 || (cmd === 144 && vel === 0)) state.currentNote = -1;
-                };
-            });
+                state.midiStatus = "connected"; updateStatus();
+                for (let input of access.inputs.values()) input.onmidimessage = handleMIDI;
+            }, () => { state.midiStatus = "failed"; updateStatus(); });
         }
     }
 
-    function updateLoop() {
-        if (document.getElementById("inputType").value === "mic" && state.isMicRunning) {
-            analyzePitch();
-        }
+    function handleMIDI(msg) {
+        if (document.getElementById("inputType").value !== "midi") return;
+        const [cmd, note, vel] = msg.data;
+        if (cmd === 144 && vel > 0) state.currentNote = note;
+        else if (cmd === 128 || (cmd === 144 && vel === 0)) state.currentNote = -1;
+    }
 
+    function updateLoop() {
+        if (document.getElementById("inputType").value === "mic" && state.isMicRunning) analyzePitch();
+        
         if (state.currentNote !== -1) {
             const playedFixed = (state.currentNote + state.transposition + 120) % 12;
             const octave = Math.floor((state.currentNote + state.transposition) / 12) - 1;
-            document.getElementById("monitorNote").innerText = `NOW: ${PITCH_NAMES[playedFixed]}${octave}`;
+            
+            if (document.getElementById("showMonitor").checked) {
+                let displayStr = "";
+                if (document.getElementById("monitorMovable").checked) {
+                    const relIdx = (playedFixed - state.keyRoot + 12) % 12;
+                    displayStr = (document.getElementById("displayMode").value === "num") ? SOLFEGE_NUMS[relIdx] : PITCH_NAMES[relIdx];
+                } else { displayStr = PITCH_NAMES[playedFixed]; }
+                if (document.getElementById("showOctave").checked) displayStr += octave;
+                document.getElementById("monitorNote").innerText = `PLAYING: ${displayStr}`;
+            }
 
-            if (playedFixed === state.targetFixedPitch) {
-                if (!state.isSustaining) { state.isSustaining = true; state.sustainStartTime = performance.now(); }
+            if (state.isStarted && playedFixed === state.targetFixedPitch && !state.isCorrect) {
+                if (!state.isSustaining) { 
+                    state.isSustaining = true; 
+                    state.sustainStartTime = performance.now(); 
+                }
                 const duration = parseFloat(document.getElementById("sustainSec").value) * 1000;
                 const elapsed = performance.now() - state.sustainStartTime;
                 const percent = Math.min((elapsed / duration) * 100, 100);
@@ -164,64 +280,149 @@
     }
 
     function analyzePitch() {
+        if (!state.analyser) return;
         const buffer = new Float32Array(state.analyser.fftSize);
         state.analyser.getFloatTimeDomainData(buffer);
-        const volume = Math.sqrt(buffer.reduce((acc, val) => acc + val * val, 0) / buffer.length);
-        const threshold = parseFloat(document.getElementById("micThreshold").value);
-
-        if (volume < threshold) { state.currentNote = -1; return; }
-
-        const freq = autoCorrelate(buffer, state.audioCtx.sampleRate);
-        if (freq !== -1) {
-            const midiNote = Math.round(12 * (Math.log(freq / 440) / Math.log(2))) + 69;
-            state.currentNote = midiNote;
+        let sum = 0; for(let i=0; i<buffer.length; i++) sum += buffer[i]*buffer[i];
+        if (Math.sqrt(sum/buffer.length) < parseFloat(document.getElementById("micThreshold").value)) {
+            state.currentNote = -1; return;
         }
+        const freq = autoCorrelate(buffer, state.audioCtx.sampleRate);
+        if (freq !== -1) state.currentNote = Math.round(12 * (Math.log(freq / 440) / Math.log(2))) + 69;
     }
 
-    // 自相關演算法抓基頻 (Simple Autocorrelation)
     function autoCorrelate(buffer, sampleRate) {
-        let SIZE = buffer.length;
-        let rms = 0;
+        let SIZE = buffer.length, rms = 0;
         for (let i=0; i<SIZE; i++) rms += buffer[i]*buffer[i];
-        rms = Math.sqrt(rms/SIZE);
-        if (rms < 0.01) return -1;
-
-        let r1=0, r2=SIZE-1, thres=0.2;
-        for (let i=0; i<SIZE/2; i++) if (Math.abs(buffer[i])<thres) { r1=i; break; }
-        for (let i=1; i<SIZE/2; i++) if (Math.abs(buffer[SIZE-i])<thres) { r2=SIZE-i; break; }
-
-        let buf = buffer.slice(r1,r2);
-        SIZE = buf.length;
+        if (Math.sqrt(rms/SIZE) < 0.01) return -1;
         let c = new Float32Array(SIZE);
-        for (let i=0; i<SIZE; i++) for (let j=0; j<SIZE-i; j++) c[i] += buf[j]*buf[j+i];
-
+        for (let i=0; i<SIZE; i++) for (let j=0; j<SIZE-i; j++) c[i] += buffer[j]*buffer[j+i];
         let d=0; while (c[d]>c[d+1]) d++;
         let maxval=-1, maxpos=-1;
         for (let i=d; i<SIZE; i++) if (c[i]>maxval) { maxval=c[i]; maxpos=i; }
-        
         return sampleRate / maxpos;
     }
 
-    function resetSustain() { state.isSustaining = false; document.getElementById("progBar").style.width = "0%"; }
-
     function generateTask() {
-        state.isCorrect = false; resetSustain();
-        const relativeIdx = MAJOR_STEPS[Math.floor(Math.random() * MAJOR_STEPS.length)];
-        state.targetFixedPitch = (state.keyRoot + relativeIdx) % 12;
+        state.isCorrect = false; 
+        resetSustain();
+        const chrom = document.getElementById("includeChromatic").checked;
+        const relIdx = chrom ? Math.floor(Math.random()*12) : MAJOR_STEPS[Math.floor(Math.random()*MAJOR_STEPS.length)];
+        state.targetFixedPitch = (state.keyRoot + relIdx) % 12;
         const mode = document.getElementById("displayMode").value;
-        document.getElementById("targetNoteDisplay").innerText = (mode === "num") ? SOLFEGE_NUMS[relativeIdx] : PITCH_NAMES[relativeIdx];
+        document.getElementById("targetNoteDisplay").innerText = (mode === "num") ? SOLFEGE_NUMS[relIdx] : PITCH_NAMES[relIdx];
         document.getElementById("targetNoteDisplay").style.color = "var(--primary)";
+        document.getElementById("mainBtn").innerText = "跳過題目";
     }
 
     function onSuccess() {
         state.isCorrect = true; state.isSustaining = false;
         document.getElementById("targetNoteDisplay").style.color = "var(--success)";
-        setTimeout(() => { if (state.isCorrect) generateTask(); }, 800);
+        playCorrectSound();
+        if (document.getElementById("autoNext").checked) {
+            setTimeout(() => { if (state.isCorrect) generateTask(); }, 800);
+        }
     }
 
-    function togglePanel(id) {
+    function resetSustain() { state.isSustaining = false; document.getElementById("progBar").style.width = "0%"; }
+    function togglePanel(id) { 
         const p = document.getElementById(id);
-        p.style.display = (p.style.display === "block") ? "none" : "block";
+        const isShow = p.style.display === "block";
+        document.querySelectorAll('.info-panel').forEach(el => el.style.display = 'none');
+        p.style.display = isShow ? 'none' : 'block';
+    }
+    function fullReset() { location.reload(); }
+    function updateStatus() {
+        const saxName = document.getElementById("saxType").options[document.getElementById("saxType").selectedIndex].text;
+        const type = document.getElementById("inputType").value;
+        document.getElementById("baseStatus").innerText = (type === "mic" && state.isMicRunning) ? `🟢 MIC READY (${saxName.split(' ')[0]})` : (state.midiStatus === "connected" ? `🟢 MIDI READY (${saxName.split(' ')[0]})` : `🟡 WAITING...`);
+    }
+
+    function playCorrectSound() {
+        if (!state.audioCtx) return;
+        const osc = state.audioCtx.createOscillator();
+        const gain = state.audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, state.audioCtx.currentTime);
+        gain.gain.setValueAtTime(0, state.audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.05, state.audioCtx.currentTime + 0.05);
+        gain.gain.linearRampToValueAtTime(0, state.audioCtx.currentTime + 0.3);
+        osc.connect(gain); gain.connect(state.audioCtx.destination);
+        osc.start(); osc.stop(state.audioCtx.currentTime + 0.3);
+    }
+
+    // --- 存檔系統 ---
+    function savePreset(slotIdx) {
+        const raw = localStorage.getItem(`sax_v2_7_preset_${slotIdx}`);
+        let oldName = "我的薩克斯風練習";
+        if (raw) { try { oldName = JSON.parse(raw).name; } catch(e) {} }
+        const name = prompt("請輸入此練習組合名稱：", oldName) || oldName;
+        const config = {
+            name: name, date: new Date().toLocaleString(),
+            data: {
+                inputType: document.getElementById("inputType").value,
+                micThreshold: document.getElementById("micThreshold").value,
+                saxType: document.getElementById("saxType").value,
+                questionKey: document.getElementById("questionKey").value,
+                displayMode: document.getElementById("displayMode").value,
+                includeChromatic: document.getElementById("includeChromatic").checked,
+                sustainEnable: document.getElementById("sustainEnable").checked,
+                sustainSec: document.getElementById("sustainSec").value,
+                showMonitor: document.getElementById("showMonitor").checked,
+                monitorMovable: document.getElementById("monitorMovable").checked,
+                showOctave: document.getElementById("showOctave").checked,
+                autoNext: document.getElementById("autoNext").checked
+            }
+        };
+        localStorage.setItem(`sax_v2_7_preset_${slotIdx}`, JSON.stringify(config));
+        updatePresetUI();
+    }
+
+    function loadPreset(slotIdx) {
+        const raw = localStorage.getItem(`sax_v2_7_preset_${slotIdx}`);
+        if (!raw) return;
+        try {
+            const c = JSON.parse(raw).data;
+            document.getElementById("inputType").value = c.inputType;
+            document.getElementById("micThreshold").value = c.micThreshold;
+            document.getElementById("saxType").value = c.saxType;
+            document.getElementById("questionKey").value = c.questionKey;
+            document.getElementById("displayMode").value = c.displayMode;
+            document.getElementById("includeChromatic").checked = c.includeChromatic;
+            document.getElementById("sustainEnable").checked = c.sustainEnable;
+            document.getElementById("sustainSec").value = c.sustainSec;
+            document.getElementById("showMonitor").checked = c.showMonitor;
+            document.getElementById("monitorMovable").checked = c.monitorMovable;
+            document.getElementById("showOctave").checked = c.showOctave;
+            document.getElementById("autoNext").checked = c.autoNext;
+            updateSettings();
+            togglePanel('presetPanel');
+        } catch(e) { alert("讀取失敗。"); }
+    }
+
+    function deletePreset(slotIdx) {
+        if(confirm("確定刪除此練習存檔？")) {
+            localStorage.removeItem(`sax_v2_7_preset_${slotIdx}`);
+            updatePresetUI();
+        }
+    }
+
+    function updatePresetUI() {
+        for (let i = 1; i <= 3; i++) {
+            const slot = document.getElementById(`slot-${i}`);
+            const raw = localStorage.getItem(`sax_v2_7_preset_${i}`);
+            if (raw) {
+                const config = JSON.parse(raw);
+                slot.innerHTML = `<div style="text-align:left; font-size:0.85em; margin-bottom:8px;"><b>${config.name}</b><br><small style="color:#718093">${config.date}</small></div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="preset-btn btn-load" onclick="loadPreset(${i})" style="flex:1">讀取</button>
+                        <button class="preset-btn btn-save" onclick="savePreset(${i})" style="flex:1">覆蓋</button>
+                        <button class="preset-btn btn-del" onclick="deletePreset(${i})">🗑️</button>
+                    </div>`;
+            } else {
+                slot.innerHTML = `<button class="preset-btn btn-save" onclick="savePreset(${i})" style="width:100%">建立存檔 ${i}</button>`;
+            }
+        }
     }
 </script>
 </body>
