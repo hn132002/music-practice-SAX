@@ -12,9 +12,33 @@
             --text-main: #dfe6e9;   --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        body { font-family: var(--font-main); display: flex; flex-direction: column; align-items: center; padding: 20px; background: var(--bg); color: var(--text-main); margin: 0; min-height: 100vh; justify-content: center; user-select: none; }
+        /* 關鍵修改：移除置中，改為與樂理版一致的頂部對齊 */
+        body { 
+            font-family: var(--font-main); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+            background: var(--bg); 
+            color: var(--text-main); 
+            margin: 0; 
+            min-height: 100vh; 
+            user-select: none; 
+            -webkit-user-select: none;
+        }
 
-        .card { background: var(--card-bg); padding: 25px; border-radius: 28px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); text-align: center; max-width: 500px; width: 100%; position: relative; border: 1px solid #3d444d; z-index: 10; }
+        .card { 
+            background: var(--card-bg); 
+            padding: 25px; 
+            border-radius: 28px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4); 
+            text-align: center; 
+            max-width: 500px; 
+            width: 100%; 
+            position: relative; 
+            border: 1px solid #3d444d; 
+            z-index: 10; 
+        }
         
         .top-nav { position: absolute; top: 15px; width: calc(100% - 40px); display: flex; justify-content: space-between; padding: 0 5px; z-index: 20; }
         .nav-group { display: flex; gap: 12px; align-items: center; }
@@ -22,7 +46,10 @@
         .nav-item:hover { filter: grayscale(0); transform: scale(1.1); opacity: 1; }
 
         .app-title { color: var(--primary); margin: 0; font-size: 1.4em; font-weight: 900; }
-        .base-status { font-size: 0.75em; color: #e67e22; font-weight: bold; margin-top: 5px; height: 1.2em; letter-spacing: 1px; }
+        
+        /* 統一 Version Tag 樣式 */
+        .version-tag { color:#718093; font-size:0.7em; font-family:monospace; margin-bottom:5px; margin-top: 2px; }
+        .base-status { font-size: 0.75em; color: #e67e22; font-weight: bold; margin-top: 5px; height: 1.2em; letter-spacing: 1px; margin-bottom: 12px; }
 
         .quiz-container { background: #182026; border-radius: 20px; padding: 30px 20px; margin: 15px 0; border: 2px solid #3d444d; min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
         .target-label { font-size: 0.9em; color: #718093; margin-bottom: 5px; font-weight: bold; }
@@ -67,6 +94,7 @@
         </div>
 
         <h1 class="app-title">橙色的薩克斯風強化</h1>
+        <div class="version-tag">Version 2.7.4</div>
         <div id="baseStatus" class="base-status">WAITING FOR INPUT...</div>
 
         <div id="presetPanel" class="info-panel">
@@ -159,7 +187,7 @@
             <details class="changelog">
                 <summary>📜 工作日誌</summary>
                 <ul style="padding-left: 20px; text-align: left; margin-top: 5px;">
-                    <li><strong>v2.7.4</strong>: 核心修復！修正音效引擎導致的腳本卡死問題。</li>
+                    <li><strong>v2.7.4</strong>: 核心修復！修正高度對齊問題。</li>
                     <li><strong>v2.7.3</strong>: 補完存檔覆蓋功能與智慧命名。</li>
                     <li><strong>v2.7.0</strong>: 支援實體 Sax 收音偵測。</li>
                 </ul>
@@ -187,12 +215,9 @@
         requestAnimationFrame(updateLoop); 
     };
 
-    // --- 核心啟動 ---
     function handleClick() {
-        // 關鍵修正：必須在點擊瞬間啟動 AudioContext 避免卡死
         if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
-        
         state.isStarted = true;
         generateTask();
     }
@@ -202,11 +227,9 @@
         const offsets = { piano: 0, alto: 9, bari: -3, tenor: 2, sop: 2 };
         state.transposition = offsets[sax];
         state.keyRoot = parseInt(document.getElementById("questionKey").value);
-        
         const inputType = document.getElementById("inputType").value;
         document.getElementById("micBtn").style.display = (inputType === "mic") ? "block" : "none";
         document.getElementById("progCont").style.display = document.getElementById("sustainEnable").checked ? "block" : "none";
-        
         const keyOpt = document.getElementById("questionKey");
         document.getElementById("keyLabel").innerText = `${keyOpt.options[keyOpt.selectedIndex].text} - 首調題`;
         updateStatus();
@@ -246,11 +269,9 @@
 
     function updateLoop() {
         if (document.getElementById("inputType").value === "mic" && state.isMicRunning) analyzePitch();
-        
         if (state.currentNote !== -1) {
             const playedFixed = (state.currentNote + state.transposition + 120) % 12;
             const octave = Math.floor((state.currentNote + state.transposition) / 12) - 1;
-            
             if (document.getElementById("showMonitor").checked) {
                 let displayStr = "";
                 if (document.getElementById("monitorMovable").checked) {
@@ -260,7 +281,6 @@
                 if (document.getElementById("showOctave").checked) displayStr += octave;
                 document.getElementById("monitorNote").innerText = `PLAYING: ${displayStr}`;
             }
-
             if (state.isStarted && playedFixed === state.targetFixedPitch && !state.isCorrect) {
                 if (!state.isSustaining) { 
                     state.isSustaining = true; 
@@ -351,7 +371,6 @@
         osc.start(); osc.stop(state.audioCtx.currentTime + 0.3);
     }
 
-    // --- 存檔系統 ---
     function savePreset(slotIdx) {
         const raw = localStorage.getItem(`sax_v2_7_preset_${slotIdx}`);
         let oldName = "我的薩克斯風練習";
