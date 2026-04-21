@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>橙色的 Sax 強化練習器 v2.7.4</title>
+    <title>橙色的 Sax 強化練習器 v2.8.1</title>
     <style>
         :root { 
             --primary: #81ecec;     --primary-dark: #2d3436; 
-            --success: #55efc4;     --error: #fab1a0;       
+            --success: #55efc4;     --error: #ff7675;        
             --bg: #1e272e;          --card-bg: #2f3640;     
             --text-main: #dfe6e9;   --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        /* 關鍵修改：移除置中，改為與樂理版一致的頂部對齊 */
         body { 
             font-family: var(--font-main); 
             display: flex; 
@@ -47,7 +46,6 @@
 
         .app-title { color: var(--primary); margin: 0; font-size: 1.4em; font-weight: 900; }
         
-        /* 統一 Version Tag 樣式 */
         .version-tag { color:#718093; font-size:0.7em; font-family:monospace; margin-bottom:5px; margin-top: 2px; }
         .base-status { font-size: 0.75em; color: #e67e22; font-weight: bold; margin-top: 5px; height: 1.2em; letter-spacing: 1px; margin-bottom: 12px; }
 
@@ -60,6 +58,16 @@
 
         .monitor-box { margin-top: 15px; height: 1.5em; }
         .monitor-small { font-size: 1.3em; color: var(--success); font-weight: bold; font-family: monospace; }
+
+        /* 新增：可視化調音器樣式 */
+        .tuner-container { width: 90%; margin-top: 15px; position: relative; display: none; }
+        .tuner-bg { width: 100%; height: 14px; background: #222f3e; border-radius: 7px; position: relative; overflow: hidden; border: 1px solid #485460; }
+        .tuner-center { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.4); z-index: 2; transform: translateX(-50%); }
+        .tuner-pointer { position: absolute; top: 0; bottom: 0; width: 6px; background: var(--success); border-radius: 3px; left: 50%; transform: translateX(-50%); transition: left 0.1s linear, background-color 0.2s; z-index: 3; box-shadow: 0 0 8px rgba(0,0,0,0.5); opacity: 0; }
+        .tuner-range { position: absolute; height: 100%; background: rgba(85, 239, 196, 0.15); top: 0; z-index: 1; transition: width 0.2s, left 0.2s; }
+        .tuner-labels { display: flex; justify-content: space-between; font-size: 0.75em; color: #718093; margin-top: 6px; font-family: monospace; font-weight: bold; }
+        .tuner-labels span:nth-child(1) { color: #74b9ff; } /* 偏低藍色 */
+        .tuner-labels span:nth-child(3) { color: #ff7675; } /* 偏高紅色 */
 
         .info-panel { background: #353b48; border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: left; display: none; border: 1px solid #485460; max-height: 65vh; overflow-y: auto; z-index: 30; }
         .setting-group { margin-bottom: 12px; border-bottom: 1px solid #485460; padding-bottom: 8px; }
@@ -94,7 +102,7 @@
         </div>
 
         <h1 class="app-title">橙色的薩克斯風強化</h1>
-        <div class="version-tag">Version 2.7.4</div>
+        <div class="version-tag">Version 2.8.1</div>
         <div id="baseStatus" class="base-status">WAITING FOR INPUT...</div>
 
         <div id="presetPanel" class="info-panel">
@@ -162,6 +170,13 @@
                         <input type="number" id="sustainSec" value="1.5" step="0.1" min="0.1" style="width:50px;">
                     </div>
                 </div>
+                
+                <div class="setting-item"><label>顯示音分與調音器</label><input type="checkbox" id="showCents" checked onchange="updateSettings()"></div>
+                <div class="setting-item">
+                    <label>容許音分誤差 (±)</label>
+                    <input type="number" id="centsTolerance" value="30" step="5" min="5" max="50" style="width:50px;" onchange="updateSettings()">
+                </div>
+                
                 <div class="setting-item"><label>顯示演奏監測</label><input type="checkbox" id="showMonitor" checked></div>
                 <div class="setting-item"><label>監測器顯示首調</label><input type="checkbox" id="monitorMovable" checked></div>
                 <div class="setting-item"><label>顯示八度 (C3/C4)</label><input type="checkbox" id="showOctave" checked></div>
@@ -177,6 +192,17 @@
             <div id="targetNoteDisplay" class="target-note">--</div>
             <div class="progress-container" id="progCont"><div class="progress-bar" id="progBar"></div></div>
             <div class="monitor-box"><div id="monitorNote" class="monitor-small"></div></div>
+            
+            <div class="tuner-container" id="tunerCont">
+                <div class="tuner-bg">
+                    <div class="tuner-range" id="tunerRange"></div>
+                    <div class="tuner-center"></div>
+                    <div class="tuner-pointer" id="tunerPointer"></div>
+                </div>
+                <div class="tuner-labels">
+                    <span>b -50</span><span>0</span><span>+50 #</span>
+                </div>
+            </div>
         </div>
 
         <button id="mainBtn" onclick="handleClick()">開始練習</button>
@@ -187,9 +213,9 @@
             <details class="changelog">
                 <summary>📜 工作日誌</summary>
                 <ul style="padding-left: 20px; text-align: left; margin-top: 5px;">
+                    <li><strong>v2.8.1</strong>: 新增直觀視覺化調音器 (Tuner Bar) 與動態安全區顯示。</li>
+                    <li><strong>v2.8.0</strong>: 新增音分 (Cents) 顯示與過關音準容錯率判定功能。</li>
                     <li><strong>v2.7.4</strong>: 核心修復！修正高度對齊問題。</li>
-                    <li><strong>v2.7.3</strong>: 補完存檔覆蓋功能與智慧命名。</li>
-                    <li><strong>v2.7.0</strong>: 支援實體 Sax 收音偵測。</li>
                 </ul>
             </details>
         </footer>
@@ -203,7 +229,7 @@
     let state = {
         transposition: 0, midiStatus: "none", keyRoot: 0,
         targetFixedPitch: -1, isSustaining: false, sustainStartTime: 0,
-        currentNote: -1, isCorrect: false, 
+        currentNote: -1, currentCents: 0, isCorrect: false, 
         audioCtx: null, analyser: null, isMicRunning: false,
         isStarted: false
     };
@@ -232,6 +258,16 @@
         document.getElementById("progCont").style.display = document.getElementById("sustainEnable").checked ? "block" : "none";
         const keyOpt = document.getElementById("questionKey");
         document.getElementById("keyLabel").innerText = `${keyOpt.options[keyOpt.selectedIndex].text} - 首調題`;
+        
+        // 更新調音器介面顯示與安全範圍
+        const showCents = document.getElementById("showCents").checked;
+        document.getElementById("tunerCont").style.display = showCents ? "block" : "none";
+        
+        const tol = parseInt(document.getElementById("centsTolerance").value) || 50;
+        const rangeWidthPercent = (tol / 50) * 100; // ±30 就是佔總寬度的 60%
+        document.getElementById("tunerRange").style.width = rangeWidthPercent + "%";
+        document.getElementById("tunerRange").style.left = (50 - (rangeWidthPercent / 2)) + "%";
+
         updateStatus();
     }
 
@@ -263,15 +299,27 @@
     function handleMIDI(msg) {
         if (document.getElementById("inputType").value !== "midi") return;
         const [cmd, note, vel] = msg.data;
-        if (cmd === 144 && vel > 0) state.currentNote = note;
-        else if (cmd === 128 || (cmd === 144 && vel === 0)) state.currentNote = -1;
+        if (cmd === 144 && vel > 0) {
+            state.currentNote = note;
+            state.currentCents = 0; // MIDI 輸入預設音分為0
+        }
+        else if (cmd === 128 || (cmd === 144 && vel === 0)) {
+            state.currentNote = -1;
+            state.currentCents = 0;
+        }
     }
 
     function updateLoop() {
         if (document.getElementById("inputType").value === "mic" && state.isMicRunning) analyzePitch();
+        
+        // 音分誤差判定 (放在最前面以便更新UI)
+        const tolerance = parseInt(document.getElementById("centsTolerance").value) || 50;
+        const isPitchAccurate = Math.abs(state.currentCents) <= tolerance;
+
         if (state.currentNote !== -1) {
             const playedFixed = (state.currentNote + state.transposition + 120) % 12;
             const octave = Math.floor((state.currentNote + state.transposition) / 12) - 1;
+            
             if (document.getElementById("showMonitor").checked) {
                 let displayStr = "";
                 if (document.getElementById("monitorMovable").checked) {
@@ -279,9 +327,24 @@
                     displayStr = (document.getElementById("displayMode").value === "num") ? SOLFEGE_NUMS[relIdx] : PITCH_NAMES[relIdx];
                 } else { displayStr = PITCH_NAMES[playedFixed]; }
                 if (document.getElementById("showOctave").checked) displayStr += octave;
+                
+                if (document.getElementById("showCents").checked) {
+                    const sign = state.currentCents > 0 ? '+' : '';
+                    displayStr += ` (${sign}${state.currentCents}¢)`;
+                    
+                    // 更新調音器光標位置與顏色
+                    const pointer = document.getElementById("tunerPointer");
+                    const clampedCents = Math.max(-50, Math.min(50, state.currentCents));
+                    pointer.style.left = ((clampedCents + 50) / 100 * 100) + "%";
+                    pointer.style.backgroundColor = isPitchAccurate ? "var(--success)" : "var(--error)";
+                    pointer.style.opacity = 1;
+                }
+
                 document.getElementById("monitorNote").innerText = `PLAYING: ${displayStr}`;
             }
-            if (state.isStarted && playedFixed === state.targetFixedPitch && !state.isCorrect) {
+
+            // 只有當音高正確且音分在容許誤差內，才能開始或繼續累積進度
+            if (state.isStarted && playedFixed === state.targetFixedPitch && isPitchAccurate && !state.isCorrect) {
                 if (!state.isSustaining) { 
                     state.isSustaining = true; 
                     state.sustainStartTime = performance.now(); 
@@ -291,10 +354,13 @@
                 const percent = Math.min((elapsed / duration) * 100, 100);
                 document.getElementById("progBar").style.width = percent + "%";
                 if (percent >= 100) onSuccess();
-            } else { resetSustain(); }
+            } else { 
+                resetSustain(); 
+            }
         } else {
             document.getElementById("monitorNote").innerText = "";
             document.getElementById("progBar").style.width = "0%";
+            document.getElementById("tunerPointer").style.opacity = 0; // 沒有聲音時隱藏光標
         }
         requestAnimationFrame(updateLoop);
     }
@@ -305,10 +371,17 @@
         state.analyser.getFloatTimeDomainData(buffer);
         let sum = 0; for(let i=0; i<buffer.length; i++) sum += buffer[i]*buffer[i];
         if (Math.sqrt(sum/buffer.length) < parseFloat(document.getElementById("micThreshold").value)) {
-            state.currentNote = -1; return;
+            state.currentNote = -1; 
+            state.currentCents = 0;
+            return;
         }
         const freq = autoCorrelate(buffer, state.audioCtx.sampleRate);
-        if (freq !== -1) state.currentNote = Math.round(12 * (Math.log(freq / 440) / Math.log(2))) + 69;
+        if (freq !== -1) {
+            // 計算連續精確音符值與音分
+            const exactNote = 12 * (Math.log(freq / 440) / Math.log(2)) + 69;
+            state.currentNote = Math.round(exactNote);
+            state.currentCents = Math.round((exactNote - state.currentNote) * 100);
+        }
     }
 
     function autoCorrelate(buffer, sampleRate) {
@@ -345,13 +418,16 @@
     }
 
     function resetSustain() { state.isSustaining = false; document.getElementById("progBar").style.width = "0%"; }
+    
     function togglePanel(id) { 
         const p = document.getElementById(id);
         const isShow = p.style.display === "block";
         document.querySelectorAll('.info-panel').forEach(el => el.style.display = 'none');
         p.style.display = isShow ? 'none' : 'block';
     }
+    
     function fullReset() { location.reload(); }
+    
     function updateStatus() {
         const saxName = document.getElementById("saxType").options[document.getElementById("saxType").selectedIndex].text;
         const type = document.getElementById("inputType").value;
@@ -390,7 +466,9 @@
                 showMonitor: document.getElementById("showMonitor").checked,
                 monitorMovable: document.getElementById("monitorMovable").checked,
                 showOctave: document.getElementById("showOctave").checked,
-                autoNext: document.getElementById("autoNext").checked
+                autoNext: document.getElementById("autoNext").checked,
+                showCents: document.getElementById("showCents").checked,
+                centsTolerance: document.getElementById("centsTolerance").value
             }
         };
         localStorage.setItem(`sax_v2_7_preset_${slotIdx}`, JSON.stringify(config));
@@ -414,6 +492,10 @@
             document.getElementById("monitorMovable").checked = c.monitorMovable;
             document.getElementById("showOctave").checked = c.showOctave;
             document.getElementById("autoNext").checked = c.autoNext;
+            
+            if(c.showCents !== undefined) document.getElementById("showCents").checked = c.showCents;
+            if(c.centsTolerance !== undefined) document.getElementById("centsTolerance").value = c.centsTolerance;
+
             updateSettings();
             togglePanel('presetPanel');
         } catch(e) { alert("讀取失敗。"); }
