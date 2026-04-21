@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>橙色的 Sax 強化練習器 v2.6.0</title>
+    <style>
+        :root { 
+            --primary: #81ecec; --success: #55efc4; --error: #fab1a0;
+            --bg: #1e272e; --card-bg: #2f3640; --text-main: #dfe6e9;
+        }
+        body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background: var(--bg); color: var(--text-main); margin: 0; min-height: 100vh; justify-content: center; user-select: none; }
+        .card { background: var(--card-bg); padding: 25px; border-radius: 28px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); text-align: center; max-width: 500px; width: 100%; position: relative; border: 1px solid #3d444d; }
+        .top-nav { position: absolute; top: 15px; width: calc(100% - 40px); display: flex; justify-content: flex-end; z-index: 10; }
+        .nav-item { cursor: pointer; font-size: 1.5em; opacity: 0.6; }
+        .base-status { font-size: 0.75em; color: #e67e22; font-weight: bold; margin-top: 5px; }
+        .quiz-container { background: #182026; border-radius: 20px; padding: 30px 20px; margin: 15px 0; border: 2px solid #3d444d; min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .target-note { font-size: 7em; font-weight: 900; color: var(--primary); line-height: 1; }
+        .progress-container { width: 100%; height: 8px; background: #2f3640; border-radius: 4px; margin-top: 20px; overflow: hidden; display: none; }
+        .progress-bar { height: 100%; width: 0%; background: var(--success); }
+        .monitor-small { font-size: 1.3em; color: var(--success); font-weight: bold; margin-top: 15px; font-family: monospace; }
+        .info-panel { background: #353b48; border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: left; display: none; border: 1px solid #485460; max-height: 65vh; overflow-y: auto; }
+        .setting-item { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 0.9em; }
+        select, input { background: #1e272e; color: white; border: 1px solid #485460; border-radius: 4px; padding: 4px; }
+        #mainBtn { padding: 16px; font-size: 1.2em; cursor: pointer; border: none; border-radius: 14px; font-weight: bold; width: 100%; color: #1e272e; background: var(--success); margin-top: 15px; }
+        #micBtn { background: #e67e22; color: white; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="top-nav"><div class="nav-item" onclick="togglePanel('settingsPanel')">⚙️</div></div>
+        <h1 style="color:var(--primary); font-size:1.4em; margin:0;">Sax 強化訓練器</h1>
+        <div id="baseStatus" class="base-status">WAITING...</div>
+
+        <div id="settingsPanel" class="info-panel">
+            <div style="font-weight:800; color:var(--primary); border-bottom:1px solid #485460; margin-bottom:10px;">🎤 輸入設定</div>
+            <div class="setting-item">
+                <label>輸入來源</label>
+                <select id="inputType" onchange="updateSettings()">
+                    <option value="midi">MIDI (YDS-120)</option>
+                    <option value="mic">Microphone (實體 Sax)</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>麥克風靈敏度 (門檻)</label>
+                <input type="range" id="micThreshold" min="0.01" max="0.3" step="0.01" value="0.05">
+            </div>
+
+            <div style="font-weight:800; color:var(--primary); margin-top:15px; border-bottom:1px solid #485460; margin-bottom:10px;">🎷 移調與調性</div>
+            <div class="setting-item">
+                <label>樂器種類</label>
+                <select id="saxType" onchange="updateSettings()">
+                    <option value="piano">Piano (C)</option>
+                    <option value="alto">Alto Sax (Eb) [+9]</option>
+                    <option value="tenor" selected>Tenor Sax (Bb) [+2]</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>訓練調性</label>
+                <select id="questionKey" onchange="updateSettings()">
+                    <option value="0">C Major</option><option value="2">D Major</option><option value="7">G Major</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>出題模式</label>
+                <select id="displayMode" onchange="updateSettings()">
+                    <option value="num">簡譜 (123)</option>
+                    <option value="name">音名 (CDE)</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>吹滿秒數</label>
+                <input type="number" id="sustainSec" value="1.5" step="0.5" style="width:50px;">
+            </div>
+            <button onclick="togglePanel('settingsPanel')" style="width:100%; padding:10px; background:var(--primary); border:none; margin-top:10px; font-weight:bold;">關閉設定</button>
+        </div>
+
+        <button id="micBtn" onclick="startMic()">🎤 點擊啟動麥克風收音</button>
+
+        <div class="quiz-container">
+            <div id="targetNoteDisplay" class="target-note">--</div>
+            <div class="progress-container" id="progCont"><div class="progress-bar" id="progBar"></div></div>
+            <div id="monitorNote" class="monitor-small"></div>
+        </div>
+
+        <button id="mainBtn" onclick="generateTask()">開始練習</button>
+    </div>
+
+<script>
+    const PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const SOLFEGE_NUMS = ["1", "#1", "2", "#2", "3", "4", "#4", "5", "#5", "6", "#6", "7"];
+    const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
+
+    let state = {
+        transposition: 0, keyRoot: 0, targetFixedPitch: -1,
+        isSustaining: false, sustainStartTime: 0, currentNote: -1,
+        audioCtx: null, analyser: null, micStream: null, isMicRunning: false
+    };
+
+    window.onload = () => { updateSettings(); initMIDI(); requestAnimationFrame(updateLoop); };
+
+    function updateSettings() {
+        const sax = document.getElementById("saxType").value;
+        const offsets = { piano: 0, alto: 9, tenor: 2 };
+        state.transposition = offsets[sax];
+        state.keyRoot = parseInt(document.getElementById("questionKey").value);
+        document.getElementById("progCont").style.display = "block";
+        document.getElementById("micBtn").style.display = (document.getElementById("inputType").value === "mic") ? "block" : "none";
+    }
+
+    async function startMic() {
+        if (state.isMicRunning) return;
+        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        state.analyser = state.audioCtx.createAnalyser();
+        state.analyser.fftSize = 2048;
+        
+        try {
+            state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const source = state.audioCtx.createMediaStreamSource(state.micStream);
+            source.connect(state.analyser);
+            state.isMicRunning = true;
+            document.getElementById("micBtn").innerText = "🎤 麥克風監聽中...";
+            document.getElementById("micBtn").style.background = "#55efc4";
+        } catch (err) { alert("無法取得麥克風權限"); }
+    }
+
+    function initMIDI() {
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess().then(access => {
+                for (let input of access.inputs.values()) input.onmidimessage = (msg) => {
+                    if (document.getElementById("inputType").value !== "midi") return;
+                    const [cmd, note, vel] = msg.data;
+                    if (cmd === 144 && vel > 0) state.currentNote = note;
+                    else if (cmd === 128 || (cmd === 144 && vel === 0)) state.currentNote = -1;
+                };
+            });
+        }
+    }
+
+    function updateLoop() {
+        if (document.getElementById("inputType").value === "mic" && state.isMicRunning) {
+            analyzePitch();
+        }
+
+        if (state.currentNote !== -1) {
+            const playedFixed = (state.currentNote + state.transposition + 120) % 12;
+            const octave = Math.floor((state.currentNote + state.transposition) / 12) - 1;
+            document.getElementById("monitorNote").innerText = `NOW: ${PITCH_NAMES[playedFixed]}${octave}`;
+
+            if (playedFixed === state.targetFixedPitch) {
+                if (!state.isSustaining) { state.isSustaining = true; state.sustainStartTime = performance.now(); }
+                const duration = parseFloat(document.getElementById("sustainSec").value) * 1000;
+                const elapsed = performance.now() - state.sustainStartTime;
+                const percent = Math.min((elapsed / duration) * 100, 100);
+                document.getElementById("progBar").style.width = percent + "%";
+                if (percent >= 100) onSuccess();
+            } else { resetSustain(); }
+        } else {
+            document.getElementById("monitorNote").innerText = "";
+            document.getElementById("progBar").style.width = "0%";
+        }
+        requestAnimationFrame(updateLoop);
+    }
+
+    function analyzePitch() {
+        const buffer = new Float32Array(state.analyser.fftSize);
+        state.analyser.getFloatTimeDomainData(buffer);
+        const volume = Math.sqrt(buffer.reduce((acc, val) => acc + val * val, 0) / buffer.length);
+        const threshold = parseFloat(document.getElementById("micThreshold").value);
+
+        if (volume < threshold) { state.currentNote = -1; return; }
+
+        const freq = autoCorrelate(buffer, state.audioCtx.sampleRate);
+        if (freq !== -1) {
+            const midiNote = Math.round(12 * (Math.log(freq / 440) / Math.log(2))) + 69;
+            state.currentNote = midiNote;
+        }
+    }
+
+    // 自相關演算法抓基頻 (Simple Autocorrelation)
+    function autoCorrelate(buffer, sampleRate) {
+        let SIZE = buffer.length;
+        let rms = 0;
+        for (let i=0; i<SIZE; i++) rms += buffer[i]*buffer[i];
+        rms = Math.sqrt(rms/SIZE);
+        if (rms < 0.01) return -1;
+
+        let r1=0, r2=SIZE-1, thres=0.2;
+        for (let i=0; i<SIZE/2; i++) if (Math.abs(buffer[i])<thres) { r1=i; break; }
+        for (let i=1; i<SIZE/2; i++) if (Math.abs(buffer[SIZE-i])<thres) { r2=SIZE-i; break; }
+
+        let buf = buffer.slice(r1,r2);
+        SIZE = buf.length;
+        let c = new Float32Array(SIZE);
+        for (let i=0; i<SIZE; i++) for (let j=0; j<SIZE-i; j++) c[i] += buf[j]*buf[j+i];
+
+        let d=0; while (c[d]>c[d+1]) d++;
+        let maxval=-1, maxpos=-1;
+        for (let i=d; i<SIZE; i++) if (c[i]>maxval) { maxval=c[i]; maxpos=i; }
+        
+        return sampleRate / maxpos;
+    }
+
+    function resetSustain() { state.isSustaining = false; document.getElementById("progBar").style.width = "0%"; }
+
+    function generateTask() {
+        state.isCorrect = false; resetSustain();
+        const relativeIdx = MAJOR_STEPS[Math.floor(Math.random() * MAJOR_STEPS.length)];
+        state.targetFixedPitch = (state.keyRoot + relativeIdx) % 12;
+        const mode = document.getElementById("displayMode").value;
+        document.getElementById("targetNoteDisplay").innerText = (mode === "num") ? SOLFEGE_NUMS[relativeIdx] : PITCH_NAMES[relativeIdx];
+        document.getElementById("targetNoteDisplay").style.color = "var(--primary)";
+    }
+
+    function onSuccess() {
+        state.isCorrect = true; state.isSustaining = false;
+        document.getElementById("targetNoteDisplay").style.color = "var(--success)";
+        setTimeout(() => { if (state.isCorrect) generateTask(); }, 800);
+    }
+
+    function togglePanel(id) {
+        const p = document.getElementById(id);
+        p.style.display = (p.style.display === "block") ? "none" : "block";
+    }
+</script>
+</body>
+</html>
