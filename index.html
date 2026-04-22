@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>橙色的 Sax 強化練習器 v2.8.1</title>
+    <title>橙色的 Sax 強化練習器 v2.8.3</title>
     <style>
         :root { 
             --primary: #81ecec;     --primary-dark: #2d3436; 
@@ -59,17 +59,18 @@
         .monitor-box { margin-top: 15px; height: 1.5em; }
         .monitor-small { font-size: 1.3em; color: var(--success); font-weight: bold; font-family: monospace; }
 
-        /* 新增：可視化調音器樣式 */
         .tuner-container { width: 90%; margin-top: 15px; position: relative; display: none; }
         .tuner-bg { width: 100%; height: 14px; background: #222f3e; border-radius: 7px; position: relative; overflow: hidden; border: 1px solid #485460; }
         .tuner-center { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.4); z-index: 2; transform: translateX(-50%); }
         .tuner-pointer { position: absolute; top: 0; bottom: 0; width: 6px; background: var(--success); border-radius: 3px; left: 50%; transform: translateX(-50%); transition: left 0.1s linear, background-color 0.2s; z-index: 3; box-shadow: 0 0 8px rgba(0,0,0,0.5); opacity: 0; }
         .tuner-range { position: absolute; height: 100%; background: rgba(85, 239, 196, 0.15); top: 0; z-index: 1; transition: width 0.2s, left 0.2s; }
         .tuner-labels { display: flex; justify-content: space-between; font-size: 0.75em; color: #718093; margin-top: 6px; font-family: monospace; font-weight: bold; }
-        .tuner-labels span:nth-child(1) { color: #74b9ff; } /* 偏低藍色 */
-        .tuner-labels span:nth-child(3) { color: #ff7675; } /* 偏高紅色 */
+        .tuner-labels span:nth-child(1) { color: #74b9ff; } 
+        .tuner-labels span:nth-child(3) { color: #ff7675; } 
 
-        .info-panel { background: #353b48; border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: left; display: none; border: 1px solid #485460; max-height: 65vh; overflow-y: auto; z-index: 30; }
+        /* 移除了 max-height 和 overflow-y 屬性，讓面板自然向下延伸 */
+        .info-panel { background: #353b48; border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: left; display: none; border: 1px solid #485460; z-index: 30; }
+        
         .setting-group { margin-bottom: 12px; border-bottom: 1px solid #485460; padding-bottom: 8px; }
         .group-title { font-weight: 800; color: var(--primary); display: block; margin-bottom: 8px; font-size: 1.1em; }
         .setting-item { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 0.9em; }
@@ -81,7 +82,14 @@
         .btn-save { background: var(--success); color: #1e272e; }
         .btn-del { background: #718093; color: white; }
 
+        #refTableContainer { display: flex; justify-content: space-between; gap: 5px; background: #232a31; padding: 10px; border-radius: 12px; margin-top: 5px; }
+        .ref-col { flex: 1; display: flex; flex-direction: column; align-items: center; background: #2f3640; border-radius: 8px; padding: 8px 2px; border: 1px solid #485460; cursor: pointer; transition: 0.2s; }
+        .ref-col:hover { background: #3d444d; transform: translateY(-2px); }
+        .ref-movable { font-weight: 900; color: var(--primary); font-size: 1.1em; margin-bottom: 4px; }
+        .ref-fixed { font-weight: bold; color: #dfe6e9; font-size: 0.9em; }
+
         #mainBtn { padding: 16px; font-size: 1.2em; cursor: pointer; border: none; border-radius: 14px; font-weight: bold; width: 100%; color: #1e272e; background: var(--success); margin-top: 15px; box-shadow: 0 4px 0 #26ae60; outline: none; }
+        #mainBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 #26ae60; }
         #micBtn { padding: 12px; background: #e67e22; color: white; border-radius: 12px; border: none; width: 100%; font-weight: bold; margin-bottom: 10px; display: none; cursor: pointer; }
         #micBtn.active { background: var(--success); color: #1e272e; }
 
@@ -94,7 +102,10 @@
 
     <div class="card">
         <div class="top-nav">
-            <div class="nav-group"><div class="nav-item" onclick="togglePanel('presetPanel')">📑</div></div>
+            <div class="nav-group">
+                <div class="nav-item" onclick="togglePanel('refPanel')">🎹</div>
+                <div class="nav-item" onclick="togglePanel('presetPanel')">📑</div>
+            </div>
             <div class="nav-group">
                 <div class="nav-item" onclick="fullReset()">🏠</div>
                 <div class="nav-item" onclick="togglePanel('settingsPanel')">⚙️</div>
@@ -102,8 +113,13 @@
         </div>
 
         <h1 class="app-title">橙色的薩克斯風強化</h1>
-        <div class="version-tag">Version 2.8.1</div>
+        <div class="version-tag">Version 2.8.3</div>
         <div id="baseStatus" class="base-status">WAITING FOR INPUT...</div>
+
+        <div id="refPanel" class="info-panel">
+            <span class="group-title">🎹 當前調性對照表 (點擊發聲)</span>
+            <div id="refTableContainer"></div>
+        </div>
 
         <div id="presetPanel" class="info-panel">
             <span class="group-title">📑 存檔管理</span>
@@ -213,9 +229,9 @@
             <details class="changelog">
                 <summary>📜 工作日誌</summary>
                 <ul style="padding-left: 20px; text-align: left; margin-top: 5px;">
+                    <li><strong>v2.8.3</strong>: 移除設定面板高度限制，展開時不再產生內部捲動拉桿。</li>
+                    <li><strong>v2.8.2</strong>: 新增左上角 🎹 當前調性對照表；修正取消勾選「吹滿秒數過關」時背景仍需等待秒數的邏輯錯誤。</li>
                     <li><strong>v2.8.1</strong>: 新增直觀視覺化調音器 (Tuner Bar) 與動態安全區顯示。</li>
-                    <li><strong>v2.8.0</strong>: 新增音分 (Cents) 顯示與過關音準容錯率判定功能。</li>
-                    <li><strong>v2.7.4</strong>: 核心修復！修正高度對齊問題。</li>
                 </ul>
             </details>
         </footer>
@@ -268,7 +284,54 @@
         document.getElementById("tunerRange").style.width = rangeWidthPercent + "%";
         document.getElementById("tunerRange").style.left = (50 - (rangeWidthPercent / 2)) + "%";
 
+        updateRefTable(); // 更新當前調性對照表
         updateStatus();
+    }
+
+    // 新增：更新當前調性對照表邏輯
+    function updateRefTable() {
+        const container = document.getElementById("refTableContainer");
+        if (!container) return;
+        container.innerHTML = "";
+        const root = state.keyRoot;
+        const movableNames = ["C", "D", "E", "F", "G", "A", "B"]; // 依照首調相對音名表示
+        
+        for (let i = 0; i < 7; i++) {
+            const interval = MAJOR_STEPS[i];
+            const fixedPitch = (root + interval) % 12;
+            const fixedName = PITCH_NAMES[fixedPitch];
+            
+            const col = document.createElement("div");
+            col.className = "ref-col";
+            col.innerHTML = `
+                <div class="ref-movable">${movableNames[i]}</div>
+                <div class="ref-fixed">${fixedName}</div>
+            `;
+            col.onclick = () => playToneForPitch(root + interval);
+            container.appendChild(col);
+        }
+    }
+
+    // 新增：對照表點擊發聲邏輯
+    function playToneForPitch(semitones) {
+        if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+        
+        const osc = state.audioCtx.createOscillator();
+        const gain = state.audioCtx.createGain();
+        
+        const midiNote = 60 + semitones; // 將根音 0 映射至 C4 (Midi 60)
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, state.audioCtx.currentTime);
+        
+        gain.gain.setValueAtTime(0, state.audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.1, state.audioCtx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.5);
+        
+        osc.connect(gain); gain.connect(state.audioCtx.destination);
+        osc.start(); osc.stop(state.audioCtx.currentTime + 0.5);
     }
 
     async function startMic() {
@@ -343,17 +406,22 @@
                 document.getElementById("monitorNote").innerText = `PLAYING: ${displayStr}`;
             }
 
-            // 只有當音高正確且音分在容許誤差內，才能開始或繼續累積進度
+            // 修正邏輯：有開啟吹滿秒數才進入進度條計算，否則立刻通關
             if (state.isStarted && playedFixed === state.targetFixedPitch && isPitchAccurate && !state.isCorrect) {
-                if (!state.isSustaining) { 
-                    state.isSustaining = true; 
-                    state.sustainStartTime = performance.now(); 
+                const isSustainRequired = document.getElementById("sustainEnable").checked;
+                if (!isSustainRequired) {
+                    onSuccess();
+                } else {
+                    if (!state.isSustaining) { 
+                        state.isSustaining = true; 
+                        state.sustainStartTime = performance.now(); 
+                    }
+                    const duration = parseFloat(document.getElementById("sustainSec").value) * 1000;
+                    const elapsed = performance.now() - state.sustainStartTime;
+                    const percent = Math.min((elapsed / duration) * 100, 100);
+                    document.getElementById("progBar").style.width = percent + "%";
+                    if (percent >= 100) onSuccess();
                 }
-                const duration = parseFloat(document.getElementById("sustainSec").value) * 1000;
-                const elapsed = performance.now() - state.sustainStartTime;
-                const percent = Math.min((elapsed / duration) * 100, 100);
-                document.getElementById("progBar").style.width = percent + "%";
-                if (percent >= 100) onSuccess();
             } else { 
                 resetSustain(); 
             }
