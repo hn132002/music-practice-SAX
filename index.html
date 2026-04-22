@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>橙色的 Sax 強化練習器 v2.8.3</title>
+    <title>橙色的 Sax 強化練習器 v2.8.4</title>
     <style>
         :root { 
             --primary: #81ecec;     --primary-dark: #2d3436; 
@@ -47,7 +47,7 @@
         .app-title { color: var(--primary); margin: 0; font-size: 1.4em; font-weight: 900; }
         
         .version-tag { color:#718093; font-size:0.7em; font-family:monospace; margin-bottom:5px; margin-top: 2px; }
-        .base-status { font-size: 0.75em; color: #e67e22; font-weight: bold; margin-top: 5px; height: 1.2em; letter-spacing: 1px; margin-bottom: 12px; }
+        .base-status { font-size: 0.75em; font-weight: bold; margin-top: 5px; height: 1.2em; letter-spacing: 1px; margin-bottom: 12px; transition: color 0.3s; }
 
         .quiz-container { background: #182026; border-radius: 20px; padding: 30px 20px; margin: 15px 0; border: 2px solid #3d444d; min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
         .target-label { font-size: 0.9em; color: #718093; margin-bottom: 5px; font-weight: bold; }
@@ -68,7 +68,6 @@
         .tuner-labels span:nth-child(1) { color: #74b9ff; } 
         .tuner-labels span:nth-child(3) { color: #ff7675; } 
 
-        /* 移除了 max-height 和 overflow-y 屬性，讓面板自然向下延伸 */
         .info-panel { background: #353b48; border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: left; display: none; border: 1px solid #485460; z-index: 30; }
         
         .setting-group { margin-bottom: 12px; border-bottom: 1px solid #485460; padding-bottom: 8px; }
@@ -113,8 +112,8 @@
         </div>
 
         <h1 class="app-title">橙色的薩克斯風強化</h1>
-        <div class="version-tag">Version 2.8.3</div>
-        <div id="baseStatus" class="base-status">WAITING FOR INPUT...</div>
+        <div class="version-tag">Version 2.8.4</div>
+        <div id="baseStatus" class="base-status" style="color: #e67e22;">WAITING FOR INPUT...</div>
 
         <div id="refPanel" class="info-panel">
             <span class="group-title">🎹 當前調性對照表 (點擊發聲)</span>
@@ -229,9 +228,9 @@
             <details class="changelog">
                 <summary>📜 工作日誌</summary>
                 <ul style="padding-left: 20px; text-align: left; margin-top: 5px;">
+                    <li><strong>v2.8.4</strong>: 修正 MIDI 裝置判斷邏輯，現在必須「真實插上設備」才會亮綠燈，並支援設備熱插拔偵測。</li>
                     <li><strong>v2.8.3</strong>: 移除設定面板高度限制，展開時不再產生內部捲動拉桿。</li>
-                    <li><strong>v2.8.2</strong>: 新增左上角 🎹 當前調性對照表；修正取消勾選「吹滿秒數過關」時背景仍需等待秒數的邏輯錯誤。</li>
-                    <li><strong>v2.8.1</strong>: 新增直觀視覺化調音器 (Tuner Bar) 與動態安全區顯示。</li>
+                    <li><strong>v2.8.2</strong>: 新增左上角 🎹 當前調性對照表；修正取消勾選「吹滿秒數過關」邏輯。</li>
                 </ul>
             </details>
         </footer>
@@ -288,13 +287,13 @@
         updateStatus();
     }
 
-    // 新增：更新當前調性對照表邏輯
+    // 更新當前調性對照表邏輯
     function updateRefTable() {
         const container = document.getElementById("refTableContainer");
         if (!container) return;
         container.innerHTML = "";
         const root = state.keyRoot;
-        const movableNames = ["C", "D", "E", "F", "G", "A", "B"]; // 依照首調相對音名表示
+        const movableNames = ["C", "D", "E", "F", "G", "A", "B"]; 
         
         for (let i = 0; i < 7; i++) {
             const interval = MAJOR_STEPS[i];
@@ -312,7 +311,7 @@
         }
     }
 
-    // 新增：對照表點擊發聲邏輯
+    // 對照表點擊發聲邏輯
     function playToneForPitch(semitones) {
         if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
@@ -320,7 +319,7 @@
         const osc = state.audioCtx.createOscillator();
         const gain = state.audioCtx.createGain();
         
-        const midiNote = 60 + semitones; // 將根音 0 映射至 C4 (Midi 60)
+        const midiNote = 60 + semitones; 
         const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
         
         osc.type = 'sine';
@@ -350,13 +349,37 @@
         } catch (err) { alert("麥克風啟動失敗。"); }
     }
 
+    // 修正 MIDI 初始化邏輯，加入設備數量判斷與熱插拔監聽
     function initMIDI() {
         if (navigator.requestMIDIAccess) {
             navigator.requestMIDIAccess().then(access => {
-                state.midiStatus = "connected"; updateStatus();
-                for (let input of access.inputs.values()) input.onmidimessage = handleMIDI;
-            }, () => { state.midiStatus = "failed"; updateStatus(); });
+                checkMIDIDevices(access); // 初始檢查
+                
+                // 監聽設備插拔事件
+                access.onstatechange = () => {
+                    checkMIDIDevices(access);
+                };
+            }, () => { 
+                state.midiStatus = "failed"; 
+                updateStatus(); 
+            });
+        } else {
+            state.midiStatus = "unsupported"; 
+            updateStatus();
         }
+    }
+
+    function checkMIDIDevices(access) {
+        if (access.inputs.size > 0) {
+            state.midiStatus = "connected";
+            // 替每個連線的裝置綁定訊息處理
+            for (let input of access.inputs.values()) {
+                input.onmidimessage = handleMIDI;
+            }
+        } else {
+            state.midiStatus = "disconnected";
+        }
+        updateStatus();
     }
 
     function handleMIDI(msg) {
@@ -375,7 +398,7 @@
     function updateLoop() {
         if (document.getElementById("inputType").value === "mic" && state.isMicRunning) analyzePitch();
         
-        // 音分誤差判定 (放在最前面以便更新UI)
+        // 音分誤差判定 
         const tolerance = parseInt(document.getElementById("centsTolerance").value) || 50;
         const isPitchAccurate = Math.abs(state.currentCents) <= tolerance;
 
@@ -395,7 +418,6 @@
                     const sign = state.currentCents > 0 ? '+' : '';
                     displayStr += ` (${sign}${state.currentCents}¢)`;
                     
-                    // 更新調音器光標位置與顏色
                     const pointer = document.getElementById("tunerPointer");
                     const clampedCents = Math.max(-50, Math.min(50, state.currentCents));
                     pointer.style.left = ((clampedCents + 50) / 100 * 100) + "%";
@@ -406,7 +428,6 @@
                 document.getElementById("monitorNote").innerText = `PLAYING: ${displayStr}`;
             }
 
-            // 修正邏輯：有開啟吹滿秒數才進入進度條計算，否則立刻通關
             if (state.isStarted && playedFixed === state.targetFixedPitch && isPitchAccurate && !state.isCorrect) {
                 const isSustainRequired = document.getElementById("sustainEnable").checked;
                 if (!isSustainRequired) {
@@ -428,7 +449,7 @@
         } else {
             document.getElementById("monitorNote").innerText = "";
             document.getElementById("progBar").style.width = "0%";
-            document.getElementById("tunerPointer").style.opacity = 0; // 沒有聲音時隱藏光標
+            document.getElementById("tunerPointer").style.opacity = 0; 
         }
         requestAnimationFrame(updateLoop);
     }
@@ -445,7 +466,6 @@
         }
         const freq = autoCorrelate(buffer, state.audioCtx.sampleRate);
         if (freq !== -1) {
-            // 計算連續精確音符值與音分
             const exactNote = 12 * (Math.log(freq / 440) / Math.log(2)) + 69;
             state.currentNote = Math.round(exactNote);
             state.currentCents = Math.round((exactNote - state.currentNote) * 100);
@@ -496,10 +516,34 @@
     
     function fullReset() { location.reload(); }
     
+    // 修正動態狀態文字與顏色顯示邏輯
     function updateStatus() {
-        const saxName = document.getElementById("saxType").options[document.getElementById("saxType").selectedIndex].text;
+        const saxSelect = document.getElementById("saxType");
+        const saxName = saxSelect.options[saxSelect.selectedIndex].text;
+        const shortName = saxName.split(' ')[0];
         const type = document.getElementById("inputType").value;
-        document.getElementById("baseStatus").innerText = (type === "mic" && state.isMicRunning) ? `🟢 MIC READY (${saxName.split(' ')[0]})` : (state.midiStatus === "connected" ? `🟢 MIDI READY (${saxName.split(' ')[0]})` : `🟡 WAITING...`);
+        const statusEl = document.getElementById("baseStatus");
+
+        if (type === "mic") {
+            if (state.isMicRunning) {
+                statusEl.innerText = `🟢 MIC READY (${shortName})`;
+                statusEl.style.color = "var(--success)";
+            } else {
+                statusEl.innerText = `🟡 WAITING FOR MIC...`;
+                statusEl.style.color = "#e67e22";
+            }
+        } else {
+            if (state.midiStatus === "connected") {
+                statusEl.innerText = `🟢 MIDI READY (${shortName})`;
+                statusEl.style.color = "var(--success)";
+            } else if (state.midiStatus === "disconnected") {
+                statusEl.innerText = `🔴 未偵測到 MIDI 設備`;
+                statusEl.style.color = "var(--error)";
+            } else {
+                statusEl.innerText = `🔴 瀏覽器不支援/未授權 MIDI`;
+                statusEl.style.color = "var(--error)";
+            }
+        }
     }
 
     function playCorrectSound() {
