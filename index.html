@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>橙色的 Sax 強化練習器 v2.8.6</title>
+    <title>橙色的 Sax 強化練習器 v2.8.7</title>
     <style>
         :root { 
             --primary: #81ecec;     --primary-dark: #2d3436; 
@@ -112,7 +112,7 @@
         </div>
 
         <h1 class="app-title">橙色的薩克斯風強化</h1>
-        <div class="version-tag">Version 2.8.6</div>
+        <div class="version-tag">Version 2.8.7 (Fast MIDI)</div>
         <div id="baseStatus" class="base-status" style="color: #e67e22;">WAITING FOR INPUT...</div>
 
         <div id="refPanel" class="info-panel">
@@ -228,9 +228,8 @@
             <details class="changelog">
                 <summary>📜 工作日誌</summary>
                 <ul style="padding-left: 20px; text-align: left; margin-top: 5px;">
+                    <li><strong>v2.8.7</strong>: 優化 MIDI 訊號處理流程，解耦邏輯運算與畫面繪製，提升快速音階吹奏時的反應速度與精準度。</li>
                     <li><strong>v2.8.6</strong>: 找回被 AI 誤刪的 🎹 當前調性對照表與發聲邏輯，維持 v2.8.3 的其餘所有設定，僅合併真實 MIDI 設備插拔偵測。</li>
-                    <li><strong>v2.8.5</strong>: (AI 誤刪功能，已廢棄)</li>
-                    <li><strong>v2.8.4</strong>: 修正 MIDI 裝置判斷邏輯，現在必須「真實插上設備」才會亮綠燈，並支援設備熱插拔偵測。</li>
                 </ul>
             </details>
         </footer>
@@ -246,7 +245,9 @@
         targetFixedPitch: -1, isSustaining: false, sustainStartTime: 0,
         currentNote: -1, currentCents: 0, isCorrect: false, 
         audioCtx: null, analyser: null, isMicRunning: false,
-        isStarted: false
+        isStarted: false,
+        // 新增：用於記錄上次顯示的文字，減少 DOM 操作
+        lastDisplayStr: "" 
     };
 
     window.onload = () => { 
@@ -274,7 +275,6 @@
         const keyOpt = document.getElementById("questionKey");
         document.getElementById("keyLabel").innerText = `${keyOpt.options[keyOpt.selectedIndex].text} - 首調題`;
         
-        // 更新調音器介面顯示與安全範圍
         const showCents = document.getElementById("showCents").checked;
         document.getElementById("tunerCont").style.display = showCents ? "block" : "none";
         
@@ -283,11 +283,10 @@
         document.getElementById("tunerRange").style.width = rangeWidthPercent + "%";
         document.getElementById("tunerRange").style.left = (50 - (rangeWidthPercent / 2)) + "%";
 
-        updateRefTable(); // 更新當前調性對照表
+        updateRefTable(); 
         updateStatus();
     }
 
-    // 更新當前調性對照表邏輯
     function updateRefTable() {
         const container = document.getElementById("refTableContainer");
         if (!container) return;
@@ -311,7 +310,6 @@
         }
     }
 
-    // 對照表點擊發聲邏輯
     function playToneForPitch(semitones) {
         if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
@@ -326,7 +324,7 @@
         osc.frequency.setValueAtTime(freq, state.audioCtx.currentTime);
         
         gain.gain.setValueAtTime(0, state.audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.1, state.audioCtx.currentTime + 0.05);
+        gain.gain.linearRampToValueAtTime(0.6, state.audioCtx.currentTime + 0.05);
         gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.5);
         
         osc.connect(gain); gain.connect(state.audioCtx.destination);
@@ -349,13 +347,10 @@
         } catch (err) { alert("麥克風啟動失敗。"); }
     }
 
-    // MIDI 初始化邏輯，加入設備數量判斷與熱插拔監聽
     function initMIDI() {
         if (navigator.requestMIDIAccess) {
             navigator.requestMIDIAccess().then(access => {
-                checkMIDIDevices(access); // 初始檢查
-                
-                // 監聽設備插拔事件
+                checkMIDIDevices(access); 
                 access.onstatechange = () => {
                     checkMIDIDevices(access);
                 };
@@ -381,25 +376,69 @@
         updateStatus();
     }
 
+    // --- MIDI 處理邏輯優化區塊 ---
     function handleMIDI(msg) {
         if (document.getElementById("inputType").value !== "midi") return;
         const [cmd, note, vel] = msg.data;
+        
         if (cmd === 144 && vel > 0) {
+            // Note On
             state.currentNote = note;
             state.currentCents = 0; 
+            
+            // 【優化】收到訊號立刻做邏輯判斷，不等待畫面更新循環
+            if (state.isStarted && !state.isCorrect) {
+                checkAnswerLogic();
+            }
         }
         else if (cmd === 128 || (cmd === 144 && vel === 0)) {
-            state.currentNote = -1;
-            state.currentCents = 0;
+            // Note Off
+            // 【優化】只在釋放「當前按下的音」時才重置，避免快速切換時被舊的 Note Off 影響
+            if (note === state.currentNote) {
+                state.currentNote = -1;
+                state.currentCents = 0;
+            }
         }
     }
 
-    function updateLoop() {
-        if (document.getElementById("inputType").value === "mic" && state.isMicRunning) analyzePitch();
-        
+    // 【新增】將判斷邏輯抽離，以便可以被 MIDI 訊號立刻觸發
+    function checkAnswerLogic() {
+        if (state.currentNote === -1) {
+            resetSustain();
+            return;
+        }
+
+        const playedFixed = (state.currentNote + state.transposition + 120) % 12;
         const tolerance = parseInt(document.getElementById("centsTolerance").value) || 50;
         const isPitchAccurate = Math.abs(state.currentCents) <= tolerance;
 
+        if (playedFixed === state.targetFixedPitch && isPitchAccurate) {
+            const isSustainRequired = document.getElementById("sustainEnable").checked;
+            if (!isSustainRequired) {
+                onSuccess();
+            } else {
+                if (!state.isSustaining) { 
+                    state.isSustaining = true; 
+                    state.sustainStartTime = performance.now(); 
+                }
+                // 進度條的更新依然交給 updateLoop 去畫，這裡只管判斷邏輯
+            }
+        } else { 
+            resetSustain(); 
+        }
+    }
+    // -----------------------------
+
+    function updateLoop() {
+        if (document.getElementById("inputType").value === "mic" && state.isMicRunning) {
+            analyzePitch();
+            // 如果是麥克風，畫面循環時也要檢查邏輯
+            if (state.isStarted && !state.isCorrect) {
+                checkAnswerLogic();
+            }
+        }
+
+        // --- 畫面更新邏輯 (負責畫畫，不負責判斷對錯) ---
         if (state.currentNote !== -1) {
             const playedFixed = (state.currentNote + state.transposition + 120) % 12;
             const octave = Math.floor((state.currentNote + state.transposition) / 12) - 1;
@@ -419,36 +458,37 @@
                     const pointer = document.getElementById("tunerPointer");
                     const clampedCents = Math.max(-50, Math.min(50, state.currentCents));
                     pointer.style.left = ((clampedCents + 50) / 100 * 100) + "%";
-                    pointer.style.backgroundColor = isPitchAccurate ? "var(--success)" : "var(--error)";
+                    const tolerance = parseInt(document.getElementById("centsTolerance").value) || 50;
+                    pointer.style.backgroundColor = Math.abs(state.currentCents) <= tolerance ? "var(--success)" : "var(--error)";
                     pointer.style.opacity = 1;
                 }
 
-                document.getElementById("monitorNote").innerText = `PLAYING: ${displayStr}`;
+                // 【優化 DOM 操作】字串有變才更新
+                if (state.lastDisplayStr !== displayStr) {
+                    document.getElementById("monitorNote").innerText = `PLAYING: ${displayStr}`;
+                    state.lastDisplayStr = displayStr;
+                }
             }
 
-            if (state.isStarted && playedFixed === state.targetFixedPitch && isPitchAccurate && !state.isCorrect) {
-                const isSustainRequired = document.getElementById("sustainEnable").checked;
-                if (!isSustainRequired) {
-                    onSuccess();
-                } else {
-                    if (!state.isSustaining) { 
-                        state.isSustaining = true; 
-                        state.sustainStartTime = performance.now(); 
-                    }
-                    const duration = parseFloat(document.getElementById("sustainSec").value) * 1000;
-                    const elapsed = performance.now() - state.sustainStartTime;
-                    const percent = Math.min((elapsed / duration) * 100, 100);
-                    document.getElementById("progBar").style.width = percent + "%";
-                    if (percent >= 100) onSuccess();
-                }
-            } else { 
-                resetSustain(); 
+            // 更新長音進度條
+            if (state.isSustaining && !state.isCorrect) {
+                const duration = parseFloat(document.getElementById("sustainSec").value) * 1000;
+                const elapsed = performance.now() - state.sustainStartTime;
+                const percent = Math.min((elapsed / duration) * 100, 100);
+                document.getElementById("progBar").style.width = percent + "%";
+                if (percent >= 100) onSuccess();
             }
+
         } else {
-            document.getElementById("monitorNote").innerText = "";
+            // 沒有聲音時的畫面重置
+            if (state.lastDisplayStr !== "") {
+                document.getElementById("monitorNote").innerText = "";
+                state.lastDisplayStr = "";
+            }
             document.getElementById("progBar").style.width = "0%";
             document.getElementById("tunerPointer").style.opacity = 0; 
         }
+        
         requestAnimationFrame(updateLoop);
     }
 
@@ -514,7 +554,6 @@
     
     function fullReset() { location.reload(); }
     
-    // 動態狀態文字與顏色顯示邏輯
     function updateStatus() {
         const saxSelect = document.getElementById("saxType");
         const saxName = saxSelect.options[saxSelect.selectedIndex].text;
