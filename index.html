@@ -590,7 +590,7 @@
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, state.audioCtx.currentTime);
         gain.gain.setValueAtTime(0, state.audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.05, state.audioCtx.currentTime + 0.05);
+        gain.gain.linearRampToValueAtTime(0.2, state.audioCtx.currentTime + 0.05);
         gain.gain.linearRampToValueAtTime(0, state.audioCtx.currentTime + 0.3);
         osc.connect(gain); gain.connect(state.audioCtx.destination);
         osc.start(); osc.stop(state.audioCtx.currentTime + 0.3);
